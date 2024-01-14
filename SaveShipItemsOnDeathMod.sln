@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyMod", "MyMod\MyMod.csproj", "{4DFA3C1C-B743-41E2-9694-97E2F8E6ECE2}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SaveShipItemsOnDeathMod", "SaveShipItemsOnDeathMod\SaveShipItemsOnDeathMod.csproj", "{4DFA3C1C-B743-41E2-9694-97E2F8E6ECE2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
