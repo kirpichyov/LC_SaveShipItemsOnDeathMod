@@ -4,30 +4,40 @@ using HarmonyLib;
 
 namespace SaveShipItemsOnDeathMod.Patches
 {
+    // TODO: Review/clean-up logs
     [HarmonyPatch(typeof(PlayerControllerB))]
     internal class MainPatch
     {
+        [HarmonyPatch(typeof(HUDManager), nameof(HUDManager.FillEndGameStats))]
+        [HarmonyPostfix]
+        public static void PostFillEndGameStatsHook(HUDManager __instance)
+        {
+            ModLogger.Instance.LogInfo("Disabling allPlayersDead overlay");
+            __instance.statsUIElements.allPlayersDeadOverlay.enabled = false;
+        }
+        
         [HarmonyPatch(typeof(RoundManager), nameof(RoundManager.DespawnPropsAtEndOfRound))]
         [HarmonyPrefix]
         public static void PreOnDespawnItemsHook()
         {
-            if (ModBase.IsAppExiting)
+            if (!GameNetworkManager.Instance.isHostingGame)
             {
-                ModBase.Log.LogInfo("Ignore patch logic. App exiting.");
+                // TODO: Remove log
+                ModLogger.Instance.LogInfo("Skip PreOnDespawnItemsHook patch logic since self is not server");
                 return;
             }
-
+            
             if (TimeOfDay.Instance.daysUntilDeadline == 0)
             {
-                ModBase.Log.LogInfo("Ignore patch logic. Days until deadline = 0.");
+                ModLogger.Instance.LogInfo("Ignore patch logic. Days until deadline = 0.");
                 return;
             }
             
             if (StartOfRound.Instance.allPlayersDead)
             {
                 StartOfRound.Instance.allPlayersDead = false;
-                ModBase.Log.LogInfo($"Pre DespawnPropsAtEndOfRound() called, set allPlayersDead={StartOfRound.Instance.allPlayersDead}");
-                ModBase.IsAllPlayersDeadOverride = true;
+                ModLogger.Instance.LogInfo($"Pre DespawnPropsAtEndOfRound, set allPlayersDead={StartOfRound.Instance.allPlayersDead}");
+                ModVariables.IsAllPlayersDeadOverride = true;
             }
         }
         
@@ -35,18 +45,19 @@ namespace SaveShipItemsOnDeathMod.Patches
         [HarmonyPostfix]
         public static void PostOnDespawnItemsHook(StartOfRound __instance)
         {
-            if (ModBase.IsAppExiting)
+            if (!GameNetworkManager.Instance.isHostingGame)
             {
-                ModBase.Log.LogInfo("Ignore patch logic. App exiting.");
+                // TODO: Remove log
+                ModLogger.Instance.LogInfo("Skip PostOnDespawnItemsHook patch logic since self is not server");
                 return;
             }
             
-            if (ModBase.IsAllPlayersDeadOverride)
+            if (ModVariables.IsAllPlayersDeadOverride)
             {
                 var allItemsOnLevel = UnityEngine.Object.FindObjectsOfType<GrabbableObject>();
                 if (allItemsOnLevel == null)
                 {
-                    ModBase.Log.LogError($"'{nameof(allItemsOnLevel)}' is null");
+                    ModLogger.Instance.LogError($"'{nameof(allItemsOnLevel)}' is null");
                     return;
                 }
 
@@ -59,11 +70,11 @@ namespace SaveShipItemsOnDeathMod.Patches
                 
                 if (itemsToApplyPenalty.Length == 0)
                 {
-                    ModBase.Log.LogInfo("No items to apply price penalty to");
+                    ModLogger.Instance.LogInfo("No items to apply price penalty to");
                     return;
                 }
 
-                ModBase.Log.LogInfo($"Found {itemsToApplyPenalty.Length} to apply price penalty to");
+                ModLogger.Instance.LogInfo($"Found {itemsToApplyPenalty.Length} to apply price penalty to");
 
                 var initialScrapValueTotal = 0;
                 var newScrapValueTotal = 0;
@@ -72,24 +83,30 @@ namespace SaveShipItemsOnDeathMod.Patches
                 {
                     var initialScrapValue = item.scrapValue;
                     initialScrapValueTotal += initialScrapValue;
+
+                    if (item.scrapValue == 0)
+                    {
+                        ModLogger.Instance.LogInfo($"Initial scrap value for {item.name} is 0. Skipping it");
+                        continue;
+                    }
+                    
                     item.SetScrapValue(initialScrapValue == 1 ? 1 : initialScrapValue / 2);
                     newScrapValueTotal += item.scrapValue;
-                    ModBase.Log.LogInfo($"Scrap value was {initialScrapValue}, now {item.scrapValue} for '{item.name}'");
+                    ModLogger.Instance.LogInfo($"Scrap value was {initialScrapValue}, now {item.scrapValue} for '{item.name}'");
                 }
 
-                ModBase.Log.LogInfo("Value of scrap on the ship was cut in half due to crew death. " +
+                ModLogger.Instance.LogInfo("Value of scrap on the ship was cut in half due to crew death. " +
                                     $"Was {initialScrapValueTotal}, now {newScrapValueTotal}");
 
                 __instance.allPlayersDead = true;
-                ModBase.IsAllPlayersDeadOverride = false;
-                ModBase.Log.LogInfo($"Post DespawnPropsAtEndOfRound() called, set allPlayersDead={StartOfRound.Instance.allPlayersDead}");
+                ModVariables.IsAllPlayersDeadOverride = false;
+                ModLogger.Instance.LogInfo($"Post DespawnPropsAtEndOfRound, set allPlayersDead={StartOfRound.Instance.allPlayersDead}");
 
                 var message = "Kirpichyov Ind. saved your items but have taken fees. " +
                               "Scrap prices were cut in a half. " +
                               $"Total was {initialScrapValueTotal}, now {newScrapValueTotal}";
                 
-                HUDManager.Instance
-                    .AddTextToChatOnServer($"[Notification] {message}");
+                HUDManager.Instance.AddTextToChatOnServer($"[Notification] {message}");
                 
                 HUDManager.Instance.ReadDialogue(new[]
                 {
