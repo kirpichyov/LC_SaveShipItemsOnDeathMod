@@ -1,6 +1,10 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
+using BepInEx;
 using GameNetcodeStuff;
 using HarmonyLib;
+using Unity.Netcode;
+using UnityEngine;
 
 namespace SaveShipItemsOnDeathMod.Patches
 {
@@ -14,6 +18,17 @@ namespace SaveShipItemsOnDeathMod.Patches
         {
             ModLogger.Instance.LogInfo("Disabling allPlayersDead overlay");
             __instance.statsUIElements.allPlayersDeadOverlay.enabled = false;
+        }
+        
+        [HarmonyPatch(typeof(PlayerControllerB), "Update")]
+        [HarmonyPrefix]
+        public static void Test()
+        {
+            if (UnityInput.Current.GetKey(KeyCode.Home) && DateTime.UtcNow.Second % 2 == 0)
+            {
+                ModLogger.Instance.LogInfo("Debug update called");
+                SaveShipItemsOnDeathModNetworkManager.Instance.SendSaveItemsNotificationClientRpc("Test", "It's me - Mario!");
+            }
         }
         
         [HarmonyPatch(typeof(RoundManager), nameof(RoundManager.DespawnPropsAtEndOfRound))]
@@ -65,8 +80,8 @@ namespace SaveShipItemsOnDeathMod.Patches
                     .Where(item => item.isInShipRoom &&
                                    item.grabbable &&
                                    item.itemProperties.isScrap &&
-                                   !item.deactivated &&
-                                   !item.isHeld).ToArray();
+                                   !item.deactivated)
+                    .ToArray();
                 
                 if (itemsToApplyPenalty.Length == 0)
                 {
@@ -102,20 +117,22 @@ namespace SaveShipItemsOnDeathMod.Patches
                 ModVariables.IsAllPlayersDeadOverride = false;
                 ModLogger.Instance.LogInfo($"Post DespawnPropsAtEndOfRound, set allPlayersDead={StartOfRound.Instance.allPlayersDead}");
 
+                var title = "KIRPICHYOV IND. MESSAGE";
                 var message = "Kirpichyov Ind. saved your items but have taken fees. " +
                               "Scrap prices were cut in a half. " +
                               $"Total was {initialScrapValueTotal}, now {newScrapValueTotal}";
                 
                 HUDManager.Instance.AddTextToChatOnServer($"[Notification] {message}");
-                
                 HUDManager.Instance.ReadDialogue(new[]
                 {
                     new DialogueSegment()
                     {
                         bodyText = message,
-                        speakerText = "KIRPICHYOV IND. MESSAGE",
+                        speakerText = title,
                     }
                 });
+                
+                SaveShipItemsOnDeathModNetworkManager.Instance.SendSaveItemsNotificationClientRpc(title, message);
             }
         }
     }

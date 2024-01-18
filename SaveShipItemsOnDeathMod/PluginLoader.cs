@@ -1,6 +1,7 @@
 ﻿using System.Reflection;
 using BepInEx;
 using HarmonyLib;
+using UnityEngine.SceneManagement;
 
 namespace SaveShipItemsOnDeathMod
 {
@@ -22,6 +23,8 @@ namespace SaveShipItemsOnDeathMod
             ModLogger.TrySetInstance(Logger);
         
             ModLogger.Instance.LogInfo($"{ModName} loaded.");
+            
+            SceneManager.sceneLoaded += ModNetworkManagerInitializer.ClientConnectInitializer;
         
             _harmony.PatchAll(Assembly.GetExecutingAssembly());
         }
