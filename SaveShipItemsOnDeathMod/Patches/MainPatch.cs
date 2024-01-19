@@ -19,18 +19,6 @@ namespace SaveShipItemsOnDeathMod.Patches
             ModLogger.Instance.LogInfo("Disabling allPlayersDead overlay");
             __instance.statsUIElements.allPlayersDeadOverlay.enabled = false;
         }
-        
-        // TODO: Remove
-        [HarmonyPatch(typeof(PlayerControllerB), "Update")]
-        [HarmonyPrefix]
-        public static void Test()
-        {
-            if (UnityInput.Current.GetKey(KeyCode.Home) && DateTime.UtcNow.Second % 2 == 0)
-            {
-                ModLogger.Instance.LogInfo("Debug update called");
-                SaveShipItemsOnDeathModNetworkManager.Instance.ShowSaveItemsNotificationClientRpc("Test", "It's me - Mario!");
-            }
-        }
 
         [HarmonyPatch(typeof(StartOfRound), "AllPlayersHaveRevivedClientRpc")]
         [HarmonyPostfix]
@@ -43,6 +31,8 @@ namespace SaveShipItemsOnDeathMod.Patches
             {
                 HUDManager.Instance.DisplayTip(ModVariables.Instance.SavedItemsTitle, ModVariables.Instance.SavedItemsMessage);
                 ModVariables.Instance.ShouldShowSavedItemsNotification = false;
+                ModVariables.Instance.SavedItemsMessage = string.Empty;
+                ModVariables.Instance.SavedItemsTitle = string.Empty;
             }
         }
         
@@ -92,6 +82,10 @@ namespace SaveShipItemsOnDeathMod.Patches
                 ModVariables.Instance.IsAllPlayersDeadOverride = false;
                 ModLogger.Instance.LogInfo($"Post DespawnPropsAtEndOfRound, set allPlayersDead={StartOfRound.Instance.allPlayersDead}");
                 
+                // TODO: Implement here check, if server count not 0 but client,
+                // then take string[] of names of objects from server (should be also sent via RPC)
+                // and try to map it to names
+                // issue is that mod allows to connect after lobby closed, so player connected has items as InShip=false
                 if (penaltyResult.TotalItemsCount == 0)
                 {
                     return;
@@ -108,8 +102,7 @@ namespace SaveShipItemsOnDeathMod.Patches
                     serverTotalCurrentCost: penaltyResult.TotalCostCurrent,
                     serverTotalItemsCount: penaltyResult.TotalItemsCount,
                     serverTotalInitialCost: penaltyResult.TotalCostInitial);
-
-                SaveShipItemsOnDeathModNetworkManager.Instance.ShowSaveItemsNotificationClientRpc(title, message);
+                
                 SaveShipItemsOnDeathModNetworkManager.Instance.ShowItemsSavedNotificationOnReviveClientRpc(title, message);
             }
         }

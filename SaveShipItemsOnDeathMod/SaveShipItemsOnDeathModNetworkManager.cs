@@ -41,19 +41,6 @@ namespace SaveShipItemsOnDeathMod
         }
         
         [ClientRpc]
-        public void ShowSaveItemsNotificationClientRpc(string title, string message)
-        {
-            HUDManager.Instance.ReadDialogue(new[]
-            {
-                new DialogueSegment()
-                {
-                    bodyText = message,
-                    speakerText = title,
-                }
-            });
-        }
-
-        [ClientRpc]
         public void ShowItemsSavedNotificationOnReviveClientRpc(string title, string message)
         {
             ModLogger.Instance.LogInfo("Received rpc for ShowItemsSavedNotificationOnReviveClientRpc");
