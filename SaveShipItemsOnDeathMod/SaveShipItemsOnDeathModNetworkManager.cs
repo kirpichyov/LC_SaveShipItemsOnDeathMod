@@ -43,9 +43,6 @@ namespace SaveShipItemsOnDeathMod
         [ClientRpc]
         public void ShowSaveItemsNotificationClientRpc(string title, string message)
         {
-            // TODO: Try send message on revive players RPC
-            //HUDManager.Instance.DisplayTip(title, message);
-            
             HUDManager.Instance.ReadDialogue(new[]
             {
                 new DialogueSegment()
@@ -54,6 +51,16 @@ namespace SaveShipItemsOnDeathMod
                     speakerText = title,
                 }
             });
+        }
+
+        [ClientRpc]
+        public void ShowItemsSavedNotificationOnReviveClientRpc(string title, string message)
+        {
+            ModLogger.Instance.LogInfo("Received rpc for ShowItemsSavedNotificationOnReviveClientRpc");
+            
+            ModVariables.Instance.ShouldShowSavedItemsNotification = true;
+            ModVariables.Instance.SavedItemsTitle = title;
+            ModVariables.Instance.SavedItemsMessage = message;
         }
     }
 }

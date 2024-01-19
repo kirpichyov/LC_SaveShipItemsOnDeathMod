@@ -20,6 +20,7 @@ namespace SaveShipItemsOnDeathMod.Patches
             __instance.statsUIElements.allPlayersDeadOverlay.enabled = false;
         }
         
+        // TODO: Remove
         [HarmonyPatch(typeof(PlayerControllerB), "Update")]
         [HarmonyPrefix]
         public static void Test()
@@ -28,6 +29,20 @@ namespace SaveShipItemsOnDeathMod.Patches
             {
                 ModLogger.Instance.LogInfo("Debug update called");
                 SaveShipItemsOnDeathModNetworkManager.Instance.ShowSaveItemsNotificationClientRpc("Test", "It's me - Mario!");
+            }
+        }
+
+        [HarmonyPatch(typeof(StartOfRound), "AllPlayersHaveRevivedClientRpc")]
+        [HarmonyPostfix]
+        public static void ShowSavedItemsNotificationOnPurpose()
+        {
+            ModLogger.Instance.LogInfo("StartOfRound.AllPlayersHaveRevivedClientRpc patch");
+            ModLogger.Instance.LogInfo($"ShouldShowSavedItemsNotification? {ModVariables.Instance.ShouldShowSavedItemsNotification}");
+            
+            if (ModVariables.Instance.ShouldShowSavedItemsNotification)
+            {
+                HUDManager.Instance.DisplayTip(ModVariables.Instance.SavedItemsTitle, ModVariables.Instance.SavedItemsMessage);
+                ModVariables.Instance.ShouldShowSavedItemsNotification = false;
             }
         }
         
@@ -95,6 +110,7 @@ namespace SaveShipItemsOnDeathMod.Patches
                     serverTotalInitialCost: penaltyResult.TotalCostInitial);
 
                 SaveShipItemsOnDeathModNetworkManager.Instance.ShowSaveItemsNotificationClientRpc(title, message);
+                SaveShipItemsOnDeathModNetworkManager.Instance.ShowItemsSavedNotificationOnReviveClientRpc(title, message);
             }
         }
     }
