@@ -1,33 +1,61 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
+using BepInEx;
 using GameNetcodeStuff;
 using HarmonyLib;
+using Unity.Netcode;
+using UnityEngine;
 
 namespace SaveShipItemsOnDeathMod.Patches
 {
+    // TODO: Review/clean-up logs
     [HarmonyPatch(typeof(PlayerControllerB))]
     internal class MainPatch
     {
+        [HarmonyPatch(typeof(HUDManager), nameof(HUDManager.FillEndGameStats))]
+        [HarmonyPostfix]
+        public static void PostFillEndGameStatsHook(HUDManager __instance)
+        {
+            ModLogger.Instance.LogInfo("Disabling allPlayersDead overlay");
+            __instance.statsUIElements.allPlayersDeadOverlay.enabled = false;
+        }
+
+        [HarmonyPatch(typeof(StartOfRound), "AllPlayersHaveRevivedClientRpc")]
+        [HarmonyPostfix]
+        public static void ShowSavedItemsNotificationOnPurpose()
+        {
+            ModLogger.Instance.LogInfo("StartOfRound.AllPlayersHaveRevivedClientRpc patch");
+            ModLogger.Instance.LogInfo($"ShouldShowSavedItemsNotification? {ModVariables.Instance.ShouldShowSavedItemsNotification}");
+            
+            if (ModVariables.Instance.ShouldShowSavedItemsNotification)
+            {
+                HUDManager.Instance.DisplayTip(ModVariables.Instance.SavedItemsTitle, ModVariables.Instance.SavedItemsMessage);
+                ModVariables.Instance.ShouldShowSavedItemsNotification = false;
+                ModVariables.Instance.SavedItemsMessage = string.Empty;
+                ModVariables.Instance.SavedItemsTitle = string.Empty;
+            }
+        }
+        
         [HarmonyPatch(typeof(RoundManager), nameof(RoundManager.DespawnPropsAtEndOfRound))]
         [HarmonyPrefix]
         public static void PreOnDespawnItemsHook()
         {
-            if (ModBase.IsAppExiting)
+            if (!GameNetworkManager.Instance.isHostingGame)
             {
-                ModBase.Log.LogInfo("Ignore patch logic. App exiting.");
                 return;
             }
-
+            
             if (TimeOfDay.Instance.daysUntilDeadline == 0)
             {
-                ModBase.Log.LogInfo("Ignore patch logic. Days until deadline = 0.");
+                ModLogger.Instance.LogInfo("Ignore patch logic. Days until deadline = 0.");
                 return;
             }
             
             if (StartOfRound.Instance.allPlayersDead)
             {
                 StartOfRound.Instance.allPlayersDead = false;
-                ModBase.Log.LogInfo($"Pre DespawnPropsAtEndOfRound() called, set allPlayersDead={StartOfRound.Instance.allPlayersDead}");
-                ModBase.IsAllPlayersDeadOverride = true;
+                ModLogger.Instance.LogInfo($"Pre DespawnPropsAtEndOfRound, set allPlayersDead={StartOfRound.Instance.allPlayersDead}");
+                ModVariables.Instance.IsAllPlayersDeadOverride = true;
             }
         }
         
@@ -35,70 +63,47 @@ namespace SaveShipItemsOnDeathMod.Patches
         [HarmonyPostfix]
         public static void PostOnDespawnItemsHook(StartOfRound __instance)
         {
-            if (ModBase.IsAppExiting)
+            if (!GameNetworkManager.Instance.isHostingGame)
             {
-                ModBase.Log.LogInfo("Ignore patch logic. App exiting.");
                 return;
             }
             
-            if (ModBase.IsAllPlayersDeadOverride)
+            if (ModVariables.Instance.IsAllPlayersDeadOverride)
             {
-                var allItemsOnLevel = UnityEngine.Object.FindObjectsOfType<GrabbableObject>();
-                if (allItemsOnLevel == null)
+                var penaltyResult = PenaltyApplier.Apply();
+
+                if (penaltyResult.IsError)
                 {
-                    ModBase.Log.LogError($"'{nameof(allItemsOnLevel)}' is null");
+                    ModLogger.Instance.LogError("Error returned in penalty result.");
                     return;
                 }
-
-                var itemsToApplyPenalty = allItemsOnLevel
-                    .Where(item => item.isInShipRoom &&
-                                   item.grabbable &&
-                                   item.itemProperties.isScrap &&
-                                   !item.deactivated &&
-                                   !item.isHeld).ToArray();
-                
-                if (itemsToApplyPenalty.Length == 0)
-                {
-                    ModBase.Log.LogInfo("No items to apply price penalty to");
-                    return;
-                }
-
-                ModBase.Log.LogInfo($"Found {itemsToApplyPenalty.Length} to apply price penalty to");
-
-                var initialScrapValueTotal = 0;
-                var newScrapValueTotal = 0;
-
-                foreach (var item in itemsToApplyPenalty)
-                {
-                    var initialScrapValue = item.scrapValue;
-                    initialScrapValueTotal += initialScrapValue;
-                    item.SetScrapValue(initialScrapValue == 1 ? 1 : initialScrapValue / 2);
-                    newScrapValueTotal += item.scrapValue;
-                    ModBase.Log.LogInfo($"Scrap value was {initialScrapValue}, now {item.scrapValue} for '{item.name}'");
-                }
-
-                ModBase.Log.LogInfo("Value of scrap on the ship was cut in half due to crew death. " +
-                                    $"Was {initialScrapValueTotal}, now {newScrapValueTotal}");
 
                 __instance.allPlayersDead = true;
-                ModBase.IsAllPlayersDeadOverride = false;
-                ModBase.Log.LogInfo($"Post DespawnPropsAtEndOfRound() called, set allPlayersDead={StartOfRound.Instance.allPlayersDead}");
+                ModVariables.Instance.IsAllPlayersDeadOverride = false;
+                ModLogger.Instance.LogInfo($"Post DespawnPropsAtEndOfRound, set allPlayersDead={StartOfRound.Instance.allPlayersDead}");
+                
+                // TODO: Implement here check, if server count not 0 but client,
+                // then take string[] of names of objects from server (should be also sent via RPC)
+                // and try to map it to names
+                // issue is that mod allows to connect after lobby closed, so player connected has items as InShip=false
+                if (penaltyResult.TotalItemsCount == 0)
+                {
+                    return;
+                }
 
+                var title = "KIRPICHYOV IND. MESSAGE";
                 var message = "Kirpichyov Ind. saved your items but have taken fees. " +
                               "Scrap prices were cut in a half. " +
-                              $"Total was {initialScrapValueTotal}, now {newScrapValueTotal}";
+                              $"Total was {penaltyResult.TotalCostInitial}, now {penaltyResult.TotalCostCurrent}";
                 
-                HUDManager.Instance
-                    .AddTextToChatOnServer($"[Notification] {message}");
+                HUDManager.Instance.AddTextToChatOnServer($"[Notification] {message}");
                 
-                HUDManager.Instance.ReadDialogue(new[]
-                {
-                    new DialogueSegment()
-                    {
-                        bodyText = message,
-                        speakerText = "KIRPICHYOV IND. MESSAGE",
-                    }
-                });
+                SaveShipItemsOnDeathModNetworkManager.Instance.ApplyItemsPenaltyClientRpc(
+                    serverTotalCurrentCost: penaltyResult.TotalCostCurrent,
+                    serverTotalItemsCount: penaltyResult.TotalItemsCount,
+                    serverTotalInitialCost: penaltyResult.TotalCostInitial);
+                
+                SaveShipItemsOnDeathModNetworkManager.Instance.ShowItemsSavedNotificationOnReviveClientRpc(title, message);
             }
         }
     }
