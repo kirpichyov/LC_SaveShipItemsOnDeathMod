@@ -12,6 +12,8 @@ namespace SaveShipItemsOnDeathMod.Patches
     [HarmonyPatch(typeof(PlayerControllerB))]
     internal class MainPatch
     {
+        //NetworkManager OnEnable / SetSingleton
+        
         [HarmonyPatch(typeof(HUDManager), nameof(HUDManager.FillEndGameStats))]
         [HarmonyPostfix]
         public static void PostFillEndGameStatsHook(HUDManager __instance)
@@ -52,7 +54,7 @@ namespace SaveShipItemsOnDeathMod.Patches
             {
                 StartOfRound.Instance.allPlayersDead = false;
                 ModLogger.Instance.LogInfo($"Pre DespawnPropsAtEndOfRound, set allPlayersDead={StartOfRound.Instance.allPlayersDead}");
-                ModVariables.IsAllPlayersDeadOverride = true;
+                ModVariables.Instance.IsAllPlayersDeadOverride = true;
             }
         }
         
@@ -67,7 +69,7 @@ namespace SaveShipItemsOnDeathMod.Patches
                 return;
             }
             
-            if (ModVariables.IsAllPlayersDeadOverride)
+            if (ModVariables.Instance.IsAllPlayersDeadOverride)
             {
                 var allItemsOnLevel = UnityEngine.Object.FindObjectsOfType<GrabbableObject>();
                 if (allItemsOnLevel == null)
@@ -114,7 +116,7 @@ namespace SaveShipItemsOnDeathMod.Patches
                                     $"Was {initialScrapValueTotal}, now {newScrapValueTotal}");
 
                 __instance.allPlayersDead = true;
-                ModVariables.IsAllPlayersDeadOverride = false;
+                ModVariables.Instance.IsAllPlayersDeadOverride = false;
                 ModLogger.Instance.LogInfo($"Post DespawnPropsAtEndOfRound, set allPlayersDead={StartOfRound.Instance.allPlayersDead}");
 
                 var title = "KIRPICHYOV IND. MESSAGE";

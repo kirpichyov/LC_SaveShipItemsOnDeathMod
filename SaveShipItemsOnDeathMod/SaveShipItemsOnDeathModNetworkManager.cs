@@ -1,5 +1,4 @@
 ﻿using Unity.Netcode;
-using UnityEngine;
 
 namespace SaveShipItemsOnDeathMod
 {
@@ -9,12 +8,7 @@ namespace SaveShipItemsOnDeathMod
 
         private void Awake()
         {
-            SaveShipItemsOnDeathModNetworkManager.Instance = this;
-
-            // if (GameNetworkManager.Instance.isHostingGame)
-            // {
-            //     // DO HOST SENDING DATA (e.x. CONFIG) TO CLIENTS HERE
-            // }
+            Instance = this;
             ModLogger.Instance.LogInfo("ModNetworkManager Awake");
         }
         

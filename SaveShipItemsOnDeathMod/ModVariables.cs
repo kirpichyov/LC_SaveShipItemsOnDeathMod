@@ -1,11 +1,14 @@
-﻿namespace SaveShipItemsOnDeathMod
+﻿using UnityEngine;
+
+namespace SaveShipItemsOnDeathMod
 {
     internal class ModVariables
     {
         public static ModVariables Instance { get; private set; }
         
-        public static bool IsAllPlayersDeadOverride { get; set; }
-
+        public bool IsAllPlayersDeadOverride { get; set; }
+        public GameObject ModNetworkManagerGameObject { get; set; }
+        
         public static bool TrySetInstance(ModVariables instance)
         {
             if (Instance != null)
