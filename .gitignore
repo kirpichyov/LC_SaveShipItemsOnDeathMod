@@ -478,3 +478,6 @@ $RECYCLE.BIN/
 
 .idea/*
 .idea
+
+!NetcodePatcher/deps/readme.txt
+NetcodePatcher/deps
