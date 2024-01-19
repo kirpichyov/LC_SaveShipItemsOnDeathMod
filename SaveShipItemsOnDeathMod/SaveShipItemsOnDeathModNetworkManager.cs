@@ -13,17 +13,38 @@ namespace SaveShipItemsOnDeathMod
         }
         
         [ClientRpc]
-        public void SendSaveItemsNotificationClientRpc(string title, string message)
+        public void ApplyItemsPenaltyClientRpc(
+            int serverTotalItemsCount,
+            int serverTotalInitialCost,
+            int serverTotalCurrentCost)
         {
-            ModLogger.Instance.LogInfo("Received rpc for SendSaveItemsNotificationRpc");
-            ModLogger.Instance.LogInfo("RPC is hosting " + GameNetworkManager.Instance.isHostingGame);
-            ModLogger.Instance.LogInfo("RPC is server " + IsServer);
-            ModLogger.Instance.LogInfo("RPC is client " + IsClient);
+            // TODO: Clean-up logs
+            ModLogger.Instance.LogInfo("Received rpc for ApplyItemsPenaltyClientRpc");
+            ModLogger.Instance.LogInfo("[Control data from server]");
+            ModLogger.Instance.LogInfo($"IsServer={IsServer};IsHost={IsHost}");
+            ModLogger.Instance.LogInfo($"{nameof(serverTotalItemsCount)}={serverTotalItemsCount}");
+            ModLogger.Instance.LogInfo($"{nameof(serverTotalInitialCost)}={serverTotalInitialCost}");
+            ModLogger.Instance.LogInfo($"{nameof(serverTotalCurrentCost)}={serverTotalCurrentCost}");
+
+            // alternative: if (GameNetworkManager.Instance.isHostingGame)
+            if (IsServer || IsHost)
+            {
+                return;
+            }
             
-            // if (GameNetworkManager.Instance.isHostingGame)
-            // {
-            //     return;
-            // }
+            var penaltyResult = PenaltyApplier.Apply();
+            ModLogger.Instance.LogInfo($"Client finished apply penalty. IsError={penaltyResult.IsError}");
+            ModLogger.Instance.LogInfo($"[Client data]");
+            ModLogger.Instance.LogInfo($"{nameof(penaltyResult.TotalItemsCount)}={penaltyResult.TotalItemsCount}");
+            ModLogger.Instance.LogInfo($"{nameof(penaltyResult.TotalCostInitial)}={penaltyResult.TotalCostInitial}");
+            ModLogger.Instance.LogInfo($"{nameof(penaltyResult.TotalCostCurrent)}={penaltyResult.TotalCostCurrent}");
+        }
+        
+        [ClientRpc]
+        public void ShowSaveItemsNotificationClientRpc(string title, string message)
+        {
+            // TODO: Try send message on revive players RPC
+            //HUDManager.Instance.DisplayTip(title, message);
             
             HUDManager.Instance.ReadDialogue(new[]
             {

@@ -12,8 +12,6 @@ namespace SaveShipItemsOnDeathMod.Patches
     [HarmonyPatch(typeof(PlayerControllerB))]
     internal class MainPatch
     {
-        //NetworkManager OnEnable / SetSingleton
-        
         [HarmonyPatch(typeof(HUDManager), nameof(HUDManager.FillEndGameStats))]
         [HarmonyPostfix]
         public static void PostFillEndGameStatsHook(HUDManager __instance)
@@ -29,7 +27,7 @@ namespace SaveShipItemsOnDeathMod.Patches
             if (UnityInput.Current.GetKey(KeyCode.Home) && DateTime.UtcNow.Second % 2 == 0)
             {
                 ModLogger.Instance.LogInfo("Debug update called");
-                SaveShipItemsOnDeathModNetworkManager.Instance.SendSaveItemsNotificationClientRpc("Test", "It's me - Mario!");
+                SaveShipItemsOnDeathModNetworkManager.Instance.ShowSaveItemsNotificationClientRpc("Test", "It's me - Mario!");
             }
         }
         
@@ -39,8 +37,6 @@ namespace SaveShipItemsOnDeathMod.Patches
         {
             if (!GameNetworkManager.Instance.isHostingGame)
             {
-                // TODO: Remove log
-                ModLogger.Instance.LogInfo("Skip PreOnDespawnItemsHook patch logic since self is not server");
                 return;
             }
             
@@ -64,77 +60,41 @@ namespace SaveShipItemsOnDeathMod.Patches
         {
             if (!GameNetworkManager.Instance.isHostingGame)
             {
-                // TODO: Remove log
-                ModLogger.Instance.LogInfo("Skip PostOnDespawnItemsHook patch logic since self is not server");
                 return;
             }
             
             if (ModVariables.Instance.IsAllPlayersDeadOverride)
             {
-                var allItemsOnLevel = UnityEngine.Object.FindObjectsOfType<GrabbableObject>();
-                if (allItemsOnLevel == null)
+                var penaltyResult = PenaltyApplier.Apply();
+
+                if (penaltyResult.IsError)
                 {
-                    ModLogger.Instance.LogError($"'{nameof(allItemsOnLevel)}' is null");
+                    ModLogger.Instance.LogError("Error returned in penalty result.");
                     return;
                 }
-
-                var itemsToApplyPenalty = allItemsOnLevel
-                    .Where(item => item.isInShipRoom &&
-                                   item.grabbable &&
-                                   item.itemProperties.isScrap &&
-                                   !item.deactivated)
-                    .ToArray();
-                
-                if (itemsToApplyPenalty.Length == 0)
-                {
-                    ModLogger.Instance.LogInfo("No items to apply price penalty to");
-                    return;
-                }
-
-                ModLogger.Instance.LogInfo($"Found {itemsToApplyPenalty.Length} to apply price penalty to");
-
-                var initialScrapValueTotal = 0;
-                var newScrapValueTotal = 0;
-
-                foreach (var item in itemsToApplyPenalty)
-                {
-                    var initialScrapValue = item.scrapValue;
-                    initialScrapValueTotal += initialScrapValue;
-
-                    if (item.scrapValue == 0)
-                    {
-                        ModLogger.Instance.LogInfo($"Initial scrap value for {item.name} is 0. Skipping it");
-                        continue;
-                    }
-                    
-                    item.SetScrapValue(initialScrapValue == 1 ? 1 : initialScrapValue / 2);
-                    newScrapValueTotal += item.scrapValue;
-                    ModLogger.Instance.LogInfo($"Scrap value was {initialScrapValue}, now {item.scrapValue} for '{item.name}'");
-                }
-
-                ModLogger.Instance.LogInfo("Value of scrap on the ship was cut in half due to crew death. " +
-                                    $"Was {initialScrapValueTotal}, now {newScrapValueTotal}");
 
                 __instance.allPlayersDead = true;
                 ModVariables.Instance.IsAllPlayersDeadOverride = false;
                 ModLogger.Instance.LogInfo($"Post DespawnPropsAtEndOfRound, set allPlayersDead={StartOfRound.Instance.allPlayersDead}");
+                
+                if (penaltyResult.TotalItemsCount == 0)
+                {
+                    return;
+                }
 
                 var title = "KIRPICHYOV IND. MESSAGE";
                 var message = "Kirpichyov Ind. saved your items but have taken fees. " +
                               "Scrap prices were cut in a half. " +
-                              $"Total was {initialScrapValueTotal}, now {newScrapValueTotal}";
+                              $"Total was {penaltyResult.TotalCostInitial}, now {penaltyResult.TotalCostCurrent}";
                 
                 HUDManager.Instance.AddTextToChatOnServer($"[Notification] {message}");
-                HUDManager.Instance.ReadDialogue(new[]
-                {
-                    new DialogueSegment()
-                    {
-                        bodyText = message,
-                        speakerText = title,
-                    }
-                });
                 
-                SaveShipItemsOnDeathModNetworkManager.Instance.SendSaveItemsNotificationClientRpc(title, message);
+                SaveShipItemsOnDeathModNetworkManager.Instance.ApplyItemsPenaltyClientRpc(
+                    serverTotalCurrentCost: penaltyResult.TotalCostCurrent,
+                    serverTotalItemsCount: penaltyResult.TotalItemsCount,
+                    serverTotalInitialCost: penaltyResult.TotalCostInitial);
+
+                SaveShipItemsOnDeathModNetworkManager.Instance.ShowSaveItemsNotificationClientRpc(title, message);
             }
         }
     }
