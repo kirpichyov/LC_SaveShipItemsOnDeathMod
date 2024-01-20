@@ -70,7 +70,8 @@ namespace SaveShipItemsOnDeathMod.Patches
             
             if (ModVariables.Instance.IsAllPlayersDeadOverride)
             {
-                var penaltyResult = PenaltyApplier.Apply();
+                var feePercent = SaveShipItemsOnDeathModNetworkManager.Instance.ScrapFee_Percent.Value;
+                var penaltyResult = PenaltyApplier.Apply(feePercent);
 
                 if (penaltyResult.IsError)
                 {
@@ -83,8 +84,8 @@ namespace SaveShipItemsOnDeathMod.Patches
                 ModLogger.Instance.LogInfo($"Post DespawnPropsAtEndOfRound, set allPlayersDead={StartOfRound.Instance.allPlayersDead}");
                 
                 // TODO: Implement here check, if server count not 0 but client,
-                // then take string[] of names of objects from server (should be also sent via RPC)
-                // and try to map it to names
+                // then take [network object ids|alt: names and coordinates] of objects from server (should be also sent via RPC)
+                // and try to map it
                 // issue is that mod allows to connect after lobby closed, so player connected has items as InShip=false
                 if (penaltyResult.TotalItemsCount == 0)
                 {
@@ -93,7 +94,7 @@ namespace SaveShipItemsOnDeathMod.Patches
 
                 var title = "KIRPICHYOV IND. MESSAGE";
                 var message = "Kirpichyov Ind. saved your items but have taken fees. " +
-                              "Scrap prices were cut in a half. " +
+                              $"Scrap prices were cut by {feePercent}%. " +
                               $"Total was {penaltyResult.TotalCostInitial}, now {penaltyResult.TotalCostCurrent}";
                 
                 HUDManager.Instance.AddTextToChatOnServer($"[Notification] {message}");

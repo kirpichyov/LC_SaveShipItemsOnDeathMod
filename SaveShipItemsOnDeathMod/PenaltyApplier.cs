@@ -1,12 +1,16 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using SaveShipItemsOnDeathMod.Models;
+using UnityEngine;
 
 namespace SaveShipItemsOnDeathMod
 {
     public static class PenaltyApplier
     {
-        public static PenaltyApplyResult Apply()
+        public static PenaltyApplyResult Apply(int feePercent)
         {
+            ModLogger.Instance.LogInfo("Fee percent to apply should be " + feePercent);
+
             var allItemsOnLevel = UnityEngine.Object.FindObjectsOfType<GrabbableObject>();
             if (allItemsOnLevel == null)
             {
@@ -55,13 +59,16 @@ namespace SaveShipItemsOnDeathMod
                     ModLogger.Instance.LogInfo($"Initial scrap value for {item.name} is 0. Skipping it");
                     continue;
                 }
-                    
-                item.SetScrapValue(initialScrapValue == 1 ? 1 : initialScrapValue / 2);
+                
+                var newScrapValue = CalcNewScarpValue(item.scrapValue, feePercent);
+                
+                item.SetScrapValue(newScrapValue);
                 newScrapValueTotal += item.scrapValue;
-                ModLogger.Instance.LogInfo($"Scrap value was {initialScrapValue}, now {item.scrapValue} for '{item.name}'");
+                
+                ModLogger.Instance.LogInfo($"Scrap value was {initialScrapValue}, now {item.scrapValue} for '{item.name}' | networkId: {item.NetworkObjectId}");
             }
 
-            ModLogger.Instance.LogInfo("Value of scrap on the ship was cut in half due to crew death. " +
+            ModLogger.Instance.LogInfo($"Value of scrap on the ship was cut by {feePercent}% due to crew death. " +
                                        $"Was {initialScrapValueTotal}, now {newScrapValueTotal}");
             
             return new PenaltyApplyResult()
@@ -70,6 +77,26 @@ namespace SaveShipItemsOnDeathMod
                 TotalCostInitial = initialScrapValueTotal,
                 TotalCostCurrent = newScrapValueTotal,
             };
+        }
+
+        private static int CalcNewScarpValue(int originalValue, int percentToApply)
+        {
+            if (percentToApply == 0)
+            {
+                return originalValue;
+            }
+            
+            if (originalValue == 1 || percentToApply == 100)
+            {
+                return 1;
+            }
+
+            var percentFloat = percentToApply / 100f;
+            var feeAmount = Mathf.Clamp(originalValue * percentFloat, 1, originalValue);
+            var feeAmountRounded = Mathf.RoundToInt(feeAmount);
+            var newAmount = Math.Clamp(originalValue - feeAmountRounded, 1, originalValue);
+
+            return newAmount;
         }
     }
 }
