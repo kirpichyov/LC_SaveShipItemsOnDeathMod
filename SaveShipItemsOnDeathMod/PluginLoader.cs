@@ -1,9 +1,9 @@
 ﻿using System.IO;
 using System.Reflection;
 using BepInEx;
+using BepInEx.Configuration;
 using HarmonyLib;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 namespace SaveShipItemsOnDeathMod
 {
@@ -13,7 +13,7 @@ namespace SaveShipItemsOnDeathMod
     {
         private const string ModGuid = "Kirpichyov.SaveShipItemsOnDeath";
         private const string ModName = "Kirpichyov's SaveShipItemsOnDeath";
-        private const string ModVersion = "1.0.1";
+        private const string ModVersion = "1.0.2";
 
         private readonly Harmony _harmony = new Harmony(ModGuid);
     
@@ -47,8 +47,15 @@ namespace SaveShipItemsOnDeathMod
             
             ModVariables.Instance.ModNetworkManagerGameObject = netManagerPrefab;
             
+            ModConfig.Init();
+            
             _harmony.PatchAll();
             ModLogger.Instance.LogInfo($"{ModName} loaded.");
+        }
+        
+        public void BindConfig<T>(ref ConfigEntry<T> config, string section, string key, T defaultValue, string description = "")
+        {
+            config = Config.Bind(section, key, defaultValue, description);
         }
     }
 }

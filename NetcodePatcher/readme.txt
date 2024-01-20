@@ -1,1 +1,0 @@
-// Create deps folder and place the all dlls from managed folder ...\SteamLibrary\steamapps\common\Lethal Company\Lethal Company_Data\Managed into it

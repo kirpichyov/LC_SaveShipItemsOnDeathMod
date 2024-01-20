@@ -1,8 +1,8 @@
 {
     "name": "SaveShipItemsOnDeath",
-    "version_number": "1.0.1",
-    "website_url": "https://github.com/kirpichyov",
-    "description": "Saves ship items on crew death but takes half a scrap price fee for saving",
+    "version_number": "1.0.2",
+    "website_url": "https://github.com/kirpichyov/LC_SaveShipItemsOnDeathMod",
+    "description": "Saves ship items on crew death but takes configured fee of scrap price for saving",
     "dependencies": [
         "BepInEx-BepInExPack-5.4.2100"
     ]

@@ -6,5 +6,6 @@
         public int TotalCostInitial { get; set; }
         public int TotalCostCurrent { get; set; }
         public bool IsError { get; set; }
+        public ulong[] UpdatedItemsNetworkIds { get; set; }
     }
 }

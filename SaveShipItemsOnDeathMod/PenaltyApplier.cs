@@ -1,12 +1,19 @@
-﻿using System.Linq;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using SaveShipItemsOnDeathMod.Models;
+using UnityEngine;
 
 namespace SaveShipItemsOnDeathMod
 {
     public static class PenaltyApplier
     {
-        public static PenaltyApplyResult Apply()
+        public static PenaltyApplyResult Apply(int feePercent, ulong[] itemsNetworkIds = null)
         {
+            ModLogger.Instance.LogDebug("Fee percent to apply should be " + feePercent);
+
+            itemsNetworkIds ??= Array.Empty<ulong>();
+            
             var allItemsOnLevel = UnityEngine.Object.FindObjectsOfType<GrabbableObject>();
             if (allItemsOnLevel == null)
             {
@@ -18,14 +25,16 @@ namespace SaveShipItemsOnDeathMod
                     TotalCostInitial = 0,
                     TotalCostCurrent = 0,
                     IsError = true,
+                    UpdatedItemsNetworkIds = Array.Empty<ulong>(),
                 };
             }
 
             var itemsToApplyPenalty = allItemsOnLevel
-                .Where(item => item.isInShipRoom &&
+                .Where(item => itemsNetworkIds.Contains(item.NetworkObjectId) ||
+                               (item.isInShipRoom &&
                                item.grabbable &&
                                item.itemProperties.isScrap &&
-                               !item.deactivated)
+                               !item.deactivated))
                 .ToArray();
                 
             if (itemsToApplyPenalty.Length == 0)
@@ -37,13 +46,15 @@ namespace SaveShipItemsOnDeathMod
                     TotalItemsCount = 0,
                     TotalCostInitial = 0,
                     TotalCostCurrent = 0,
+                    UpdatedItemsNetworkIds = Array.Empty<ulong>(),
                 };
             }
 
-            ModLogger.Instance.LogInfo($"Found {itemsToApplyPenalty.Length} to apply price penalty to");
+            ModLogger.Instance.LogInfo($"Found {itemsToApplyPenalty.Length} items to apply price penalty to");
 
             var initialScrapValueTotal = 0;
             var newScrapValueTotal = 0;
+            var updatedItemsNetworkIds = new List<ulong>(capacity: itemsToApplyPenalty.Length);
 
             foreach (var item in itemsToApplyPenalty)
             {
@@ -55,13 +66,17 @@ namespace SaveShipItemsOnDeathMod
                     ModLogger.Instance.LogInfo($"Initial scrap value for {item.name} is 0. Skipping it");
                     continue;
                 }
-                    
-                item.SetScrapValue(initialScrapValue == 1 ? 1 : initialScrapValue / 2);
+                
+                var newScrapValue = CalcNewScarpValue(item.scrapValue, feePercent);
+                
+                item.SetScrapValue(newScrapValue);
                 newScrapValueTotal += item.scrapValue;
-                ModLogger.Instance.LogInfo($"Scrap value was {initialScrapValue}, now {item.scrapValue} for '{item.name}'");
+                updatedItemsNetworkIds.Add(item.NetworkObjectId);
+                
+                ModLogger.Instance.LogInfo($"Scrap value was {initialScrapValue}, now {item.scrapValue} for '{item.name}' | networkId: {item.NetworkObjectId}");
             }
 
-            ModLogger.Instance.LogInfo("Value of scrap on the ship was cut in half due to crew death. " +
+            ModLogger.Instance.LogInfo($"Value of scrap on the ship was cut by {feePercent}% due to crew death. " +
                                        $"Was {initialScrapValueTotal}, now {newScrapValueTotal}");
             
             return new PenaltyApplyResult()
@@ -69,7 +84,28 @@ namespace SaveShipItemsOnDeathMod
                 TotalItemsCount = itemsToApplyPenalty.Length,
                 TotalCostInitial = initialScrapValueTotal,
                 TotalCostCurrent = newScrapValueTotal,
+                UpdatedItemsNetworkIds = updatedItemsNetworkIds.ToArray(),
             };
+        }
+
+        private static int CalcNewScarpValue(int originalValue, int percentToApply)
+        {
+            if (percentToApply == 0)
+            {
+                return originalValue;
+            }
+            
+            if (originalValue == 1 || percentToApply == 100)
+            {
+                return 1;
+            }
+
+            var percentFloat = percentToApply / 100f;
+            var feeAmount = Mathf.Clamp(originalValue * percentFloat, 1, originalValue);
+            var feeAmountRounded = Mathf.RoundToInt(feeAmount);
+            var newAmount = Math.Clamp(originalValue - feeAmountRounded, 1, originalValue);
+
+            return newAmount;
         }
     }
 }
