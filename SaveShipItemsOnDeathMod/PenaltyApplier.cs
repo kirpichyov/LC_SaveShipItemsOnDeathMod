@@ -10,7 +10,7 @@ namespace SaveShipItemsOnDeathMod
     {
         public static PenaltyApplyResult Apply(int feePercent, ulong[] itemsNetworkIds = null)
         {
-            ModLogger.Instance.LogInfo("Fee percent to apply should be " + feePercent);
+            ModLogger.Instance.LogDebug("Fee percent to apply should be " + feePercent);
 
             itemsNetworkIds ??= Array.Empty<ulong>();
             
@@ -50,7 +50,7 @@ namespace SaveShipItemsOnDeathMod
                 };
             }
 
-            ModLogger.Instance.LogInfo($"Found {itemsToApplyPenalty.Length} to apply price penalty to");
+            ModLogger.Instance.LogInfo($"Found {itemsToApplyPenalty.Length} items to apply price penalty to");
 
             var initialScrapValueTotal = 0;
             var newScrapValueTotal = 0;

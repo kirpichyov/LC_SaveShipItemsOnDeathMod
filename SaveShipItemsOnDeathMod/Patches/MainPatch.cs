@@ -1,14 +1,8 @@
-﻿using System;
-using System.Linq;
-using BepInEx;
-using GameNetcodeStuff;
+﻿using GameNetcodeStuff;
 using HarmonyLib;
-using Unity.Netcode;
-using UnityEngine;
 
 namespace SaveShipItemsOnDeathMod.Patches
 {
-    // TODO: Review/clean-up logs
     [HarmonyPatch(typeof(PlayerControllerB))]
     internal class MainPatch
     {
@@ -16,7 +10,7 @@ namespace SaveShipItemsOnDeathMod.Patches
         [HarmonyPostfix]
         public static void PostFillEndGameStatsHook(HUDManager __instance)
         {
-            ModLogger.Instance.LogInfo("Disabling allPlayersDead overlay");
+            ModLogger.Instance.LogDebug("Disabling allPlayersDead overlay");
             __instance.statsUIElements.allPlayersDeadOverlay.enabled = false;
         }
 
@@ -24,8 +18,8 @@ namespace SaveShipItemsOnDeathMod.Patches
         [HarmonyPostfix]
         public static void ShowSavedItemsNotificationOnPurpose()
         {
-            ModLogger.Instance.LogInfo("StartOfRound.AllPlayersHaveRevivedClientRpc patch");
-            ModLogger.Instance.LogInfo($"ShouldShowSavedItemsNotification? {ModVariables.Instance.ShouldShowSavedItemsNotification}");
+            ModLogger.Instance.LogDebug("StartOfRound.AllPlayersHaveRevivedClientRpc patch");
+            ModLogger.Instance.LogDebug($"ShouldShowSavedItemsNotification? {ModVariables.Instance.ShouldShowSavedItemsNotification}");
             
             if (ModVariables.Instance.ShouldShowSavedItemsNotification)
             {
@@ -47,14 +41,14 @@ namespace SaveShipItemsOnDeathMod.Patches
             
             if (TimeOfDay.Instance.daysUntilDeadline == 0)
             {
-                ModLogger.Instance.LogInfo("Ignore patch logic. Days until deadline = 0.");
+                ModLogger.Instance.LogDebug("Ignore patch logic. Days until deadline = 0.");
                 return;
             }
             
             if (StartOfRound.Instance.allPlayersDead)
             {
                 StartOfRound.Instance.allPlayersDead = false;
-                ModLogger.Instance.LogInfo($"Pre DespawnPropsAtEndOfRound, set allPlayersDead={StartOfRound.Instance.allPlayersDead}");
+                ModLogger.Instance.LogDebug($"Pre DespawnPropsAtEndOfRound, set allPlayersDead={StartOfRound.Instance.allPlayersDead}");
                 ModVariables.Instance.IsAllPlayersDeadOverride = true;
             }
         }
@@ -81,12 +75,8 @@ namespace SaveShipItemsOnDeathMod.Patches
 
                 __instance.allPlayersDead = true;
                 ModVariables.Instance.IsAllPlayersDeadOverride = false;
-                ModLogger.Instance.LogInfo($"Post DespawnPropsAtEndOfRound, set allPlayersDead={StartOfRound.Instance.allPlayersDead}");
+                ModLogger.Instance.LogDebug($"Post DespawnPropsAtEndOfRound, set allPlayersDead={StartOfRound.Instance.allPlayersDead}");
                 
-                // TODO: Implement here check, if server count not 0 but client,
-                // then take [network object ids|alt: names and coordinates] of objects from server (should be also sent via RPC)
-                // and try to map it
-                // issue is that mod allows to connect after lobby closed, so player connected has items as InShip=false
                 if (penaltyResult.TotalItemsCount == 0)
                 {
                     return;
