@@ -7,3 +7,4 @@
 
 # v.1.0.2
 - Added ability to configure the scrap penalty fee percentage
+- Fixed visual scrap cost sync issue for clients when server already has items that were placed on ship before clients connected

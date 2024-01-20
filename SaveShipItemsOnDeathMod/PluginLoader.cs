@@ -13,7 +13,7 @@ namespace SaveShipItemsOnDeathMod
     {
         private const string ModGuid = "Kirpichyov.SaveShipItemsOnDeath";
         private const string ModName = "Kirpichyov's SaveShipItemsOnDeath";
-        private const string ModVersion = "1.0.1";
+        private const string ModVersion = "1.0.2";
 
         private readonly Harmony _harmony = new Harmony(ModGuid);
     
