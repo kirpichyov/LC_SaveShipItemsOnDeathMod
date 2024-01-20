@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using SaveShipItemsOnDeathMod.Models;
 using UnityEngine;
@@ -7,10 +8,12 @@ namespace SaveShipItemsOnDeathMod
 {
     public static class PenaltyApplier
     {
-        public static PenaltyApplyResult Apply(int feePercent)
+        public static PenaltyApplyResult Apply(int feePercent, ulong[] itemsNetworkIds = null)
         {
             ModLogger.Instance.LogInfo("Fee percent to apply should be " + feePercent);
 
+            itemsNetworkIds ??= Array.Empty<ulong>();
+            
             var allItemsOnLevel = UnityEngine.Object.FindObjectsOfType<GrabbableObject>();
             if (allItemsOnLevel == null)
             {
@@ -22,14 +25,16 @@ namespace SaveShipItemsOnDeathMod
                     TotalCostInitial = 0,
                     TotalCostCurrent = 0,
                     IsError = true,
+                    UpdatedItemsNetworkIds = Array.Empty<ulong>(),
                 };
             }
 
             var itemsToApplyPenalty = allItemsOnLevel
-                .Where(item => item.isInShipRoom &&
+                .Where(item => itemsNetworkIds.Contains(item.NetworkObjectId) ||
+                               (item.isInShipRoom &&
                                item.grabbable &&
                                item.itemProperties.isScrap &&
-                               !item.deactivated)
+                               !item.deactivated))
                 .ToArray();
                 
             if (itemsToApplyPenalty.Length == 0)
@@ -41,6 +46,7 @@ namespace SaveShipItemsOnDeathMod
                     TotalItemsCount = 0,
                     TotalCostInitial = 0,
                     TotalCostCurrent = 0,
+                    UpdatedItemsNetworkIds = Array.Empty<ulong>(),
                 };
             }
 
@@ -48,6 +54,7 @@ namespace SaveShipItemsOnDeathMod
 
             var initialScrapValueTotal = 0;
             var newScrapValueTotal = 0;
+            var updatedItemsNetworkIds = new List<ulong>(capacity: itemsToApplyPenalty.Length);
 
             foreach (var item in itemsToApplyPenalty)
             {
@@ -64,6 +71,7 @@ namespace SaveShipItemsOnDeathMod
                 
                 item.SetScrapValue(newScrapValue);
                 newScrapValueTotal += item.scrapValue;
+                updatedItemsNetworkIds.Add(item.NetworkObjectId);
                 
                 ModLogger.Instance.LogInfo($"Scrap value was {initialScrapValue}, now {item.scrapValue} for '{item.name}' | networkId: {item.NetworkObjectId}");
             }
@@ -76,6 +84,7 @@ namespace SaveShipItemsOnDeathMod
                 TotalItemsCount = itemsToApplyPenalty.Length,
                 TotalCostInitial = initialScrapValueTotal,
                 TotalCostCurrent = newScrapValueTotal,
+                UpdatedItemsNetworkIds = updatedItemsNetworkIds.ToArray(),
             };
         }
 

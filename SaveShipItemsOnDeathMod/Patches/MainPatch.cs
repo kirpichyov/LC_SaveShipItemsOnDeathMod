@@ -98,11 +98,14 @@ namespace SaveShipItemsOnDeathMod.Patches
                               $"Total was {penaltyResult.TotalCostInitial}, now {penaltyResult.TotalCostCurrent}";
                 
                 HUDManager.Instance.AddTextToChatOnServer($"[Notification] {message}");
+
+                var updatedNetworkIdsString = string.Join(';', penaltyResult.UpdatedItemsNetworkIds);
                 
                 SaveShipItemsOnDeathModNetworkManager.Instance.ApplyItemsPenaltyClientRpc(
                     serverTotalCurrentCost: penaltyResult.TotalCostCurrent,
                     serverTotalItemsCount: penaltyResult.TotalItemsCount,
-                    serverTotalInitialCost: penaltyResult.TotalCostInitial);
+                    serverTotalInitialCost: penaltyResult.TotalCostInitial,
+                    serverNetworkObjectIds: updatedNetworkIdsString);
                 
                 SaveShipItemsOnDeathModNetworkManager.Instance.ShowItemsSavedNotificationOnReviveClientRpc(title, message);
             }
